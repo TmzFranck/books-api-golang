@@ -18,7 +18,7 @@ type Claims struct {
 	UserId    uint   `json:"user_id"`
 	UserEmail string `json:"user_email"`
 	Refresh   bool   `json:"refresh,omitempty"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 func InitJWT(accessSecretKey, refreshSecretKey string) {
@@ -31,8 +31,8 @@ func GenerateTokens(userId uint, userEmail string) (string, string, error) {
 	accessClaims := &Claims{
 		UserId:    userId,
 		UserEmail: userEmail,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(accessTTL).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(accessTTL)),
 			Issuer:    "BooksApi",
 		},
 	}
@@ -47,8 +47,8 @@ func GenerateTokens(userId uint, userEmail string) (string, string, error) {
 		UserId:    userId,
 		UserEmail: userEmail,
 		Refresh:   true,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(refreshTTL).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(refreshTTL)),
 			Issuer:    "BooksApi",
 		},
 	}
