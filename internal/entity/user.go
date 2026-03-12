@@ -11,8 +11,8 @@ type User struct {
 	IsVerified   bool      `gorm:"column:is_verified;default:false"`
 	Email        string    `gorm:"column:email;uniqueIndex"`
 	PasswordHash string    `gorm:"column:password_hash"`
-	Books        []Book    `gorm:"foreignKey:UserID"`
-	Reviews      []Review  `gorm:"foreignKey:UserID"`
+	Books        []Book    `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Reviews      []Review  `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	CreatedAt    time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time `gorm:"column:updated_at;autoUpdateTime"`
 }

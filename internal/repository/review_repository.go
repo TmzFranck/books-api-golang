@@ -2,39 +2,41 @@ package repository
 
 import (
 	"errors"
-	"log"
 
 	"github.com/TmzFranck/books-api-golang/internal/entity"
 	"github.com/TmzFranck/books-api-golang/internal/model"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type ReviewRepository struct {
 	Repository[entity.Review]
-	Log *log.Logger
+	Log *logrus.Logger
 }
 
-func NewReviewRepository(log *log.Logger) *ReviewRepository {
+func NewReviewRepository(log *logrus.Logger) *ReviewRepository {
 	return &ReviewRepository{
 		Log: log,
 	}
 }
 
-func (r *ReviewRepository) AddReviewToBook(db *gorm.DB, userId, bookId uint, reviewData model.ReviewCreateRequest) error {
-	bookRepo := NewBookRepository(r.Log)
-	book := &entity.Book{}
-
-	err := bookRepo.FindById(db, book, bookId)
-	if err != nil {
-		return err
+func (r *ReviewRepository) AddReviewToBook(db *gorm.DB, userId, bookId uint, reviewData model.ReviewCreateRequest) (*entity.Review, error) {
+	var bookCount int64
+	if err := db.Model(&entity.Book{}).Where("id = ?", bookId).Count(&bookCount).Error; err != nil {
+		return nil, err
 	}
 
-	userRepo := NewUserRepository(r.Log)
-	user := &entity.User{}
+	if bookCount == 0 {
+		return nil, errors.New("book not found")
+	}
 
-	err = userRepo.FindById(db, user, userId)
-	if err != nil {
-		return err
+	var userCount int64
+	if err := db.Model(&entity.User{}).Where("id = ?", userId).Count(&userCount).Error; err != nil {
+		return nil, err
+	}
+
+	if userCount == 0 {
+		return nil, errors.New("user not found")
 	}
 
 	newReview := &entity.Review{
@@ -44,7 +46,11 @@ func (r *ReviewRepository) AddReviewToBook(db *gorm.DB, userId, bookId uint, rev
 		UserID:     userId,
 	}
 
-	return r.Create(db, newReview)
+	if err := r.Create(db, newReview); err != nil {
+		return nil, err
+	}
+
+	return newReview, nil
 }
 
 func (r *ReviewRepository) DeleteReviewFromBook(db *gorm.DB, reviewId, userId uint) error {
@@ -60,4 +66,10 @@ func (r *ReviewRepository) DeleteReviewFromBook(db *gorm.DB, reviewId, userId ui
 	}
 
 	return r.Delete(db, review)
+}
+
+func (r *ReviewRepository) GetAll(db *gorm.DB) ([]entity.Review, error) {
+	var reviews []entity.Review
+	err := db.Preload("User").Preload("Book").Find(&reviews).Error
+	return reviews, err
 }

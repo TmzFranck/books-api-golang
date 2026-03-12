@@ -10,8 +10,8 @@ type BookResponse struct {
 	PublisherDate uint             `json:"publisher_date"`
 	PageCount     uint             `json:"page_count"`
 	Language      string           `json:"language"`
-	Reviews       []ReviewResponse `json:"reviews"`
-	Tags          []TagResponse    `json:"tags"`
+	Reviews       []ReviewResponse `json:"reviews,omitempty"`
+	Tags          []TagResponse    `json:"tags,omitempty"`
 	User          UserResponse     `json:"user"`
 	CreatedAt     time.Time        `json:"created_at"`
 	UpdatedAt     time.Time        `json:"updated_at"`

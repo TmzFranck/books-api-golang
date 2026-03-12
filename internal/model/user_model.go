@@ -17,13 +17,9 @@ type UserCreateRequest struct {
 	FirstName string `json:"first_name" validate:"required"`
 	Lastname  string `json:"lastname" validate:"required"`
 	Username  string `json:"username" validate:"required"`
+	Role      string `json:"role" validate:"required,oneof=admin user"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required"`
-}
-
-type UserLoginRequest struct {
-	Email    string `json:"email" validate:"required,max=40,email"`
-	Password string `json:"password" validate:"required,min=6"`
 }
 
 type UserBooksResponse struct {
@@ -41,5 +37,5 @@ type PasswordResetRequest struct {
 
 type PasswordResetConfirmationRequest struct {
 	NewPassword        string `json:"new_password" validate:"required,min=6"`
-	ConfirmNewPassword string `json:"Confirm_new_password" validate:"required,min=6"`
+	ConfirmNewPassword string `json:"confirm_new_password" validate:"required,min=6"`
 }

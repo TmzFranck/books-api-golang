@@ -12,8 +12,8 @@ type Book struct {
 	Language      string    `gorm:"column:language"`
 	UserID        uint      `gorm:"column:user_id"`
 	User          User      `gorm:"foreignKey:UserID"`
-	Reviews       []Review  `gorm:"foreignKey:BookID"`
-	Tags          []Tag     `gorm:"many2many:book_tags;"`
+	Reviews       []Review  `gorm:"foreignKey:BookID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Tags          []Tag     `gorm:"many2many:book_tags;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	CreatedAt     time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"column:updated_at;autoUpdateTime"`
 }

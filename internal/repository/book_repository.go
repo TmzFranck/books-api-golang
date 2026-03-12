@@ -1,27 +1,32 @@
 package repository
 
 import (
-	"log"
-
 	"github.com/TmzFranck/books-api-golang/internal/entity"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type BookRepository struct {
 	Repository[entity.Book]
-	Log *log.Logger
+	Log *logrus.Logger
 }
 
-func NewBookRepository(log *log.Logger) *BookRepository {
+func NewBookRepository(log *logrus.Logger) *BookRepository {
 	return &BookRepository{
 		Log: log,
 	}
 }
 
 func (b *BookRepository) FindAll(db *gorm.DB, books *[]entity.Book) error {
-	return db.Find(books).Error
+	return db.Preload("User").Preload("Reviews").Preload("Tags").Find(books).Error
 }
 
-func (b *BookRepository) GetUserBook(db *gorm.DB, userId uint, books *[]entity.Book) error {
-	return db.Where("user_id = ?", userId).Find(books).Error
+func (b *BookRepository) GetUserBook(db *gorm.DB, userId uint) ([]entity.Book, error) {
+	var books []entity.Book
+	err := db.Where("user_id = ?", userId).
+		Preload("User").
+		Preload("Reviews").
+		Preload("Tags").
+		Find(&books).Error
+	return books, err
 }
