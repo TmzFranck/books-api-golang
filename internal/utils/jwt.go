@@ -63,7 +63,7 @@ func GenerateTokens(userId uint, userEmail string) (string, string, error) {
 
 func RefreshToken(r string) (string, error) {
 	claims, err := ValidateToken(r)
-	if !claims.Refresh {
+	if err != nil || !claims.Refresh {
 		return "", fmt.Errorf("invalid refresh token")
 	}
 
