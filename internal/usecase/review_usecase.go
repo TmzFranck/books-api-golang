@@ -7,6 +7,7 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model"
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
+	"github.com/TmzFranck/books-api-golang/internal/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ func (c *ReviewUseCase) GetAllReviews(cx context.Context) ([]model.ReviewRespons
 	reviews, err := c.ReviewRepository.GetAll(tx)
 	if err != nil {
 		c.Log.Error("Error fetching reviews: ", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.ReviewsToResponse(reviews), nil
@@ -46,7 +47,7 @@ func (c *ReviewUseCase) GetReview(cx context.Context, ReviewId uint) (*model.Rev
 	review := &entity.Review{}
 	if err := c.ReviewRepository.FindByIdWith(tx, review, ReviewId, "User", "Book"); err != nil {
 		c.Log.Errorf("Error fetching review: %+v", err)
-		return nil, err
+		return nil, utils.ErrNotFound
 	}
 
 	return converter.ReviewToResponse(review), nil
@@ -58,12 +59,12 @@ func (c *ReviewUseCase) DeleteReviewFromBook(cx context.Context, reviewId, userI
 
 	if err := c.ReviewRepository.DeleteReviewFromBook(tx, reviewId, userId); err != nil {
 		c.Log.Errorf("Error deleting review: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 	return nil
 }
@@ -74,18 +75,18 @@ func (c *ReviewUseCase) AddReviewToBook(cx context.Context, userId, bookId uint,
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	review, err := c.ReviewRepository.AddReviewToBook(tx, userId, bookId, *request)
 	if err != nil {
 		c.Log.Errorf("Error adding review: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	return converter.ReviewToResponse(review), nil
 }

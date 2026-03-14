@@ -7,6 +7,7 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model"
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
+	"github.com/TmzFranck/books-api-golang/internal/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ func (c *BookUseCase) GetAllBooks(cx context.Context) ([]model.BookResponse, err
 	var books []entity.Book
 	if err := c.BookRepository.FindAll(tx, &books); err != nil {
 		c.Log.Errorf("Error fetching books: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.BooksToResponse(books), nil
@@ -47,7 +48,7 @@ func (c *BookUseCase) GetBook(cx context.Context, bookId uint) (*model.BookRespo
 	book := &entity.Book{}
 	if err := c.BookRepository.FindByIdWith(tx, book, bookId, "User", "Reviews", "Tags"); err != nil {
 		c.Log.Errorf("Error fetching book: %+v", err)
-		return nil, err
+		return nil, utils.ErrNotFound
 	}
 
 	return converter.BookToResponse(book), nil
@@ -73,17 +74,17 @@ func (c *BookUseCase) CreateBook(cx context.Context, userId uint, request *model
 	}
 	if err := c.BookRepository.Create(tx, book); err != nil {
 		c.Log.Errorf("Error creating book: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	db := c.DB.WithContext(cx)
 	if err := c.BookRepository.FindByIdWith(db, book, book.ID, "User", "Reviews", "Tags"); err != nil {
 		c.Log.Errorf("Error fetching created book: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.BookToResponse(book), nil
@@ -95,13 +96,13 @@ func (c *BookUseCase) UpdateBook(cx context.Context, bookId uint, request *model
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	book := &entity.Book{}
 	if err := c.BookRepository.FindById(tx, book, bookId); err != nil {
 		c.Log.Errorf("Error fetching book: %+v", err)
-		return nil, err
+		return nil, utils.ErrNotFound
 	}
 
 	book.Title = request.Title
@@ -111,18 +112,18 @@ func (c *BookUseCase) UpdateBook(cx context.Context, bookId uint, request *model
 
 	if err := c.BookRepository.Update(tx, book); err != nil {
 		c.Log.Errorf("Error updating book: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	db := c.DB.WithContext(cx)
 	if err := c.BookRepository.FindByIdWith(db, book, book.ID, "User", "Reviews", "Tags"); err != nil {
 		c.Log.Errorf("Error fetching updated book: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.BookToResponse(book), nil
@@ -135,17 +136,17 @@ func (c *BookUseCase) DeleteBook(cx context.Context, bookId uint) error {
 	book := &entity.Book{}
 	if err := c.BookRepository.FindById(tx, book, bookId); err != nil {
 		c.Log.Errorf("Error fetching book: %+v", err)
-		return err
+		return utils.ErrNotFound
 	}
 
 	if err := c.BookRepository.Delete(tx, book); err != nil {
 		c.Log.Errorf("Error deleting book: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 	return nil
 }
@@ -156,7 +157,7 @@ func (c *BookUseCase) GetUserBooksSubmissions(cx context.Context, userId uint) (
 	books, err := c.BookRepository.GetUserBook(tx, userId)
 	if err != nil {
 		c.Log.Errorf("Error fetching user books: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.BooksToResponse(books), nil

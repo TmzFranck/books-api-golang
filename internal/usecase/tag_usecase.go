@@ -7,6 +7,7 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model"
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
+	"github.com/TmzFranck/books-api-golang/internal/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ func (c *TagUseCase) GetAllTags(ctx context.Context) ([]model.TagResponse, error
 	tags, err := c.TagRepository.GetAll(tx)
 	if err != nil {
 		c.Log.Errorf("Error fetching tags: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.TagsToResponse(tags), nil
@@ -46,7 +47,7 @@ func (c *TagUseCase) CreateTag(cx context.Context, request *model.TagCreateReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	tag := &entity.Tag{
@@ -54,11 +55,11 @@ func (c *TagUseCase) CreateTag(cx context.Context, request *model.TagCreateReque
 	}
 	if err := c.TagRepository.Create(tx, tag); err != nil {
 		c.Log.Errorf("Error creating tag: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	return converter.TagToResponse(tag), nil
 }
@@ -68,18 +69,18 @@ func (c *TagUseCase) AddTagToBook(cx context.Context, bookId uint, request *mode
 	defer tx.Rollback()
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	book, err := c.TagRepository.AddTagToBook(tx, bookId, request)
 	if err != nil {
 		c.Log.Errorf("Error adding tag to book: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.BookToResponse(book), nil
@@ -91,23 +92,23 @@ func (c *TagUseCase) UpdateTag(cx context.Context, tagId uint, request *model.Ta
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 	tag := new(entity.Tag)
 	if err := c.TagRepository.FindById(tx, tag, tagId); err != nil {
 		c.Log.Errorf("Error fetching tag: %+v", err)
-		return nil, err
+		return nil, utils.ErrNotFound
 	}
 
 	tag.Name = request.Name
 
 	if err := c.TagRepository.Update(tx, tag); err != nil {
 		c.Log.Errorf("Error updating tag: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 	return converter.TagToResponse(tag), nil
 }
@@ -121,11 +122,11 @@ func (c *TagUseCase) DeleteTag(cx context.Context, tagId uint) error {
 	}
 	if err := c.TagRepository.Delete(tx, tag); err != nil {
 		c.Log.Errorf("Error deleting tag: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return err
+		return utils.ErrInternalServerError
 	}
 	return nil
 }

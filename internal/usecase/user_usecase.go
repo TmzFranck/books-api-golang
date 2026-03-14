@@ -36,13 +36,13 @@ func (c *UserUseCase) CreateUser(cx context.Context, request *model.UserCreateRe
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.Log.Errorf("Error hashing password: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	user := &entity.User{
@@ -56,12 +56,12 @@ func (c *UserUseCase) CreateUser(cx context.Context, request *model.UserCreateRe
 
 	if err := c.UserRepository.Create(tx, user); err != nil {
 		c.Log.Errorf("Error creating user: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Errorf("Error committing transaction: %+v", err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return converter.UserToResponse(user), nil
@@ -73,18 +73,18 @@ func (c *UserUseCase) LoginUser(cx context.Context, request model.UserLoginReque
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, request.Email); err != nil {
 		c.Log.Errorf("Error fetching user: %+v", err)
-		return nil, err
+		return nil, utils.ErrBadRequest
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password)); err != nil {
 		c.Log.Errorf("Invalid password for user %s: %+v", request.Email, err)
-		return nil, err
+		return nil, utils.ErrUnauthorized
 	}
 
 	accessToken, refreshToken, err := utils.GenerateTokens(user.ID, user.Email)
 	if err != nil {
 		c.Log.Errorf("Error generating tokens for user %s: %+v", request.Email, err)
-		return nil, err
+		return nil, utils.ErrInternalServerError
 	}
 
 	return &model.LoginResponse{
@@ -100,13 +100,13 @@ func (c *UserUseCase) GetNewTokens(cx context.Context, refreshToken string) (*mo
 	claims, err := utils.ValidateToken(refreshToken)
 	if err != nil || claims.Refresh == false {
 		c.Log.Errorf("Invalid refresh token: %+v", err)
-		return nil, err
+		return nil, utils.ErrUnauthorized
 	}
 
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, claims.UserEmail); err != nil {
 		c.Log.Errorf("Error fetching user for token refresh: %+v", err)
-		return nil, err
+		return nil, utils.ErrUnauthorized
 	}
 
 	accessToken, err := utils.RefreshToken(refreshToken)
