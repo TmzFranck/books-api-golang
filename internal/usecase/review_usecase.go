@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/TmzFranck/books-api-golang/internal/delivery/http/middleware"
 	"github.com/TmzFranck/books-api-golang/internal/entity"
 	"github.com/TmzFranck/books-api-golang/internal/model"
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
@@ -53,9 +54,11 @@ func (c *ReviewUseCase) GetReview(cx context.Context, ReviewId uint) (*model.Rev
 	return converter.ReviewToResponse(review), nil
 }
 
-func (c *ReviewUseCase) DeleteReviewFromBook(cx context.Context, reviewId, userId uint) error {
+func (c *ReviewUseCase) DeleteReviewFromBook(cx context.Context, reviewId uint) error {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
+
+	userId := middleware.GetUserID(cx)
 
 	if err := c.ReviewRepository.DeleteReviewFromBook(tx, reviewId, userId); err != nil {
 		c.Log.Errorf("Error deleting review: %+v", err)
@@ -69,7 +72,7 @@ func (c *ReviewUseCase) DeleteReviewFromBook(cx context.Context, reviewId, userI
 	return nil
 }
 
-func (c *ReviewUseCase) AddReviewToBook(cx context.Context, userId, bookId uint, request *model.ReviewCreateRequest) (*model.ReviewResponse, error) {
+func (c *ReviewUseCase) AddReviewToBook(cx context.Context, bookId uint, request *model.ReviewCreateRequest) (*model.ReviewResponse, error) {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
@@ -77,6 +80,8 @@ func (c *ReviewUseCase) AddReviewToBook(cx context.Context, userId, bookId uint,
 		c.Log.Errorf("Validation error: %+v", err)
 		return nil, utils.ErrBadRequest
 	}
+
+	userId := middleware.GetUserID(cx)
 
 	review, err := c.ReviewRepository.AddReviewToBook(tx, userId, bookId, *request)
 	if err != nil {

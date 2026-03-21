@@ -27,7 +27,7 @@ type UserBooksResponse struct {
 	Books []BookResponse `json:"books"`
 }
 
-type EmailResponse struct {
+type EmailRequest struct {
 	Addresses []string `json:"addresses"`
 }
 

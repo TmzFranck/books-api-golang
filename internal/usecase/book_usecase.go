@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/TmzFranck/books-api-golang/internal/delivery/http/middleware"
 	"github.com/TmzFranck/books-api-golang/internal/entity"
 	"github.com/TmzFranck/books-api-golang/internal/model"
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
@@ -54,7 +55,7 @@ func (c *BookUseCase) GetBook(cx context.Context, bookId uint) (*model.BookRespo
 	return converter.BookToResponse(book), nil
 }
 
-func (c *BookUseCase) CreateBook(cx context.Context, userId uint, request *model.BookCreateRequest) (*model.BookResponse, error) {
+func (c *BookUseCase) CreateBook(cx context.Context, request *model.BookCreateRequest) (*model.BookResponse, error) {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
@@ -62,6 +63,8 @@ func (c *BookUseCase) CreateBook(cx context.Context, userId uint, request *model
 		c.Log.Errorf("Validation error: %+v", err)
 		return nil, err
 	}
+
+	userId := middleware.GetUserID(cx)
 
 	book := &entity.Book{
 		Title:         request.Title,
@@ -105,6 +108,12 @@ func (c *BookUseCase) UpdateBook(cx context.Context, bookId uint, request *model
 		return nil, utils.ErrNotFound
 	}
 
+	userId := middleware.GetUserID(cx)
+	if book.UserID != userId {
+		c.Log.Errorf("User %d is not authorized to update book %d", userId, bookId)
+		return nil, utils.ErrForbidden
+	}
+	
 	book.Title = request.Title
 	book.Author = request.Author
 	book.Publisher = request.Publisher

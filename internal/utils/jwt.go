@@ -21,6 +21,11 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+type UrlSafeToken struct {
+	Usermail string `json:"usermail"`
+	jwt.RegisteredClaims
+}
+
 func InitJWT(accessSecretKey, refreshSecretKey string) {
 	accessSecret = []byte(accessSecretKey)
 	refreshSecret = []byte(refreshSecretKey)
@@ -77,7 +82,7 @@ func RefreshToken(r string) (string, error) {
 
 func ValidateToken(tokenString string) (*Claims, error) {
 	// Parse and validate the token
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -87,6 +92,34 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return nil, err
 	}
 	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+	return claims, nil
+}
+
+func GenerateURLSafeToken(usermail string) (string, error) {
+	token := &UrlSafeToken{
+		Usermail: usermail,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			Issuer:    "BooksApi",
+		},
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, token).SignedString(accessSecret)
+}
+
+func ValidateURLSafeToken(tokenString string) (*UrlSafeToken, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &UrlSafeToken{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return accessSecret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*UrlSafeToken)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
