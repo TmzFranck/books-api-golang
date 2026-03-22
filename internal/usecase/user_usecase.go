@@ -24,25 +24,26 @@ type UserUseCase struct {
 	Log            *logrus.Logger
 	Validate       *validator.Validate
 	UserRepository *repository.UserRepository
+	Viper          *viper.Viper
+	WorkerPool     *jobs.WokerPool
+	RedisClient    *redis.Client
 }
 
-func NewUserUseCase(db *gorm.DB, log *logrus.Logger, validate *validator.Validate, userRepository *repository.UserRepository) *UserUseCase {
+func NewUserUseCase(db *gorm.DB, log *logrus.Logger, validate *validator.Validate, viper *viper.Viper, workerPool *jobs.WokerPool, userRepository *repository.UserRepository, redisClient *redis.Client) *UserUseCase {
 	return &UserUseCase{
 		DB:             db,
 		Log:            log,
 		Validate:       validate,
 		UserRepository: userRepository,
+		Viper:          viper,
+		WorkerPool:     workerPool,
+		RedisClient:    redisClient,
 	}
 }
 
-func (c *UserUseCase) CreateUser(cx context.Context, viper *viper.Viper, worker *jobs.WokerPool, request *model.UserCreateRequest) (*model.UserResponse, error) {
+func (c *UserUseCase) CreateUser(cx context.Context, request *model.UserCreateRequest) (*model.UserResponse, error) {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
 
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -75,7 +76,7 @@ func (c *UserUseCase) CreateUser(cx context.Context, viper *viper.Viper, worker 
 		return nil, utils.ErrInternalServerError
 	}
 
-	link := fmt.Sprintf("http://%s/api/v1/auth/verify?token=%s", viper.GetString("server.domain"), token)
+	link := fmt.Sprintf("http://%s/api/v1/auth/verify?token=%s", c.Viper.GetString("server.domain"), token)
 
 	html_message := fmt.Sprintf("<p>Please click the following link to verify your email: <a href=\"%s\">%s</a></p>", link, link)
 
@@ -86,29 +87,24 @@ func (c *UserUseCase) CreateUser(cx context.Context, viper *viper.Viper, worker 
 		Body:    html_message,
 	}
 
-	if err = utils.SendMail(worker, mail); err != nil {
+	if err = utils.SendMail(c.WorkerPool, mail); err != nil {
 		c.Log.Errorf("Error sending verification email: %+v", err)
 	}
 
 	return converter.UserToResponse(user), nil
 }
 
-func (c *UserUseCase) LoginUser(cx context.Context, request model.UserLoginRequest) (*model.LoginResponse, error) {
+func (c *UserUseCase) LoginUser(cx context.Context, request *model.UserLoginRequest) (*model.LoginResponse, error) {
 	tx := c.DB.WithContext(cx)
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
 
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, request.Email); err != nil {
-		c.Log.Errorf("Error fetching user: %+v", err)
+		c.Log.Warnf("Error fetching user: %+v", err)
 		return nil, utils.ErrBadRequest
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password)); err != nil {
-		c.Log.Errorf("Invalid password for user %s: %+v", request.Email, err)
+		c.Log.Warnf("Invalid password for user %s: %+v", request.Email, err)
 		return nil, utils.ErrUnauthorized
 	}
 
@@ -125,7 +121,7 @@ func (c *UserUseCase) LoginUser(cx context.Context, request model.UserLoginReque
 	}, nil
 }
 
-func (c *UserUseCase) GetNewTokens(cx context.Context, refreshToken string) (*model.LoginResponse, error) {
+func (c *UserUseCase) GetNewAccessToken(cx context.Context, refreshToken string) (*model.LoginResponse, error) {
 	tx := c.DB.WithContext(cx)
 
 	claims, err := utils.ValidateToken(refreshToken)
@@ -141,6 +137,10 @@ func (c *UserUseCase) GetNewTokens(cx context.Context, refreshToken string) (*mo
 	}
 
 	accessToken, err := utils.RefreshToken(refreshToken)
+	if err != nil {
+		c.Log.Errorf("Error refreshing token: %+v", err)
+		return nil, utils.ErrInternalServerError
+	}
 
 	return &model.LoginResponse{
 		User:        *converter.UserToInfoResponse(user),
@@ -152,42 +152,42 @@ func (c *UserUseCase) GetNewTokens(cx context.Context, refreshToken string) (*mo
 func (c *UserUseCase) VerifyEmail(cx context.Context, token string) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
+		c.Log.Warnf("Invalid token: %+v", err)
 		return utils.ErrUnauthorized
 	}
 
 	tx := c.DB.WithContext(cx)
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, claims.UserEmail); err != nil {
+		c.Log.Warnf("Error fetching user: %+v", err)
 		return utils.ErrUnauthorized
 	}
 
 	user.IsVerified = true
 	if err := c.UserRepository.Update(tx, user); err != nil {
+		c.Log.Errorf("Error updating user: %+v", err)
 		return utils.ErrInternalServerError
 	}
 
 	return nil
 }
 
-func (c *UserUseCase) PasswordResetRequest(cx context.Context, viper *viper.Viper, worker *jobs.WokerPool, request *model.PasswordResetRequest) error {
+func (c *UserUseCase) PasswordResetRequest(cx context.Context, request *model.PasswordResetRequest) error {
 	tx := c.DB.WithContext(cx)
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return utils.ErrBadRequest
-	}
 
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, request.Email); err != nil {
+		c.Log.Warnf("Error fetching user: %+v", err)
 		return utils.ErrNotFound
 	}
 
 	token, err := utils.GenerateURLSafeToken(user.Email)
 	if err != nil {
+		c.Log.Errorf("Error generating token: %+v", err)
 		return utils.ErrInternalServerError
 	}
 
-	link := fmt.Sprintf("http://%s/api/auth/password-reset-confirm?token=%s", viper.GetString("server.domain"), token)
+	link := fmt.Sprintf("http://%s/api/auth/password-reset-confirm?token=%s", c.Viper.GetString("server.domain"), token)
 
 	html_message := fmt.Sprintf("<p>Please click the following link to reset your password: <a href=\"%s\">%s</a></p>", link, link)
 
@@ -198,8 +198,9 @@ func (c *UserUseCase) PasswordResetRequest(cx context.Context, viper *viper.Vipe
 		Body:    html_message,
 	}
 
-	err = utils.SendMail(worker, &mail)
+	err = utils.SendMail(c.WorkerPool, &mail)
 	if err != nil {
+		c.Log.Errorf("Error sending mail: %+v", err)
 		return utils.ErrInternalServerError
 	}
 
@@ -211,16 +212,13 @@ func (c *UserUseCase) PasswordResetConfirm(cx context.Context, token string, req
 
 	claims, err := utils.ValidateURLSafeToken(token)
 	if err != nil {
-		return utils.ErrBadRequest
-	}
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
+		c.Log.Warnf("Error validating token: %+v", err)
 		return utils.ErrBadRequest
 	}
 
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, claims.Usermail); err != nil {
+		c.Log.Warnf("Error fetching user: %+v", err)
 		return utils.ErrNotFound
 	}
 
@@ -231,26 +229,24 @@ func (c *UserUseCase) PasswordResetConfirm(cx context.Context, token string, req
 	}
 	user.PasswordHash = string(hashedPassword)
 	if err := c.UserRepository.Update(tx, user); err != nil {
+		c.Log.Errorf("Error updating user: %+v", err)
 		return utils.ErrInternalServerError
 	}
 
 	return nil
 }
 
-func (c *UserUseCase) RevokeToken(cx context.Context, redisClient *redis.Client, token string) error {
+func (c *UserUseCase) RevokeToken(cx context.Context, token string) error {
 
-	if err := utils.AddJwtToBlacklist(cx, redisClient, token); err != nil {
+	if err := utils.AddJwtToBlacklist(cx, c.RedisClient, token); err != nil {
+		c.Log.Errorf("Error adding token to blacklist: %+v", err)
 		return err
 	}
 
 	return nil
 }
 
-func (c *UserUseCase) SendMail(cx context.Context, worker *jobs.WokerPool, request *model.EmailRequest) error {
-	if c.Validate.Struct(request) != nil {
-		return utils.ErrBadRequest
-	}
-
+func (c *UserUseCase) SendMail(cx context.Context, request *model.EmailRequest) error {
 	mail := &utils.Mail{
 		Sender:  "Books Api",
 		To:      request.Addresses,
@@ -258,7 +254,8 @@ func (c *UserUseCase) SendMail(cx context.Context, worker *jobs.WokerPool, reque
 		Body:    "<h1>Welcome to Books Api!</h1>",
 	}
 
-	if err := utils.SendMail(worker, mail); err != nil {
+	if err := utils.SendMail(c.WorkerPool, mail); err != nil {
+		c.Log.Errorf("Error sending mail: %+v", err)
 		return utils.ErrInternalServerError
 	}
 
@@ -272,6 +269,7 @@ func (c *UserUseCase) GetCurrentUser(cx context.Context) (*model.UserResponse, e
 
 	user := &entity.User{}
 	if err := c.UserRepository.FindByEmail(tx, user, usermail); err != nil {
+		c.Log.Warnf("Error fetching user: %+v", err)
 		return nil, utils.ErrNotFound
 	}
 

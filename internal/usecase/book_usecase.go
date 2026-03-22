@@ -33,8 +33,8 @@ func NewBookUseCase(db *gorm.DB, log *logrus.Logger, validate *validator.Validat
 func (c *BookUseCase) GetAllBooks(cx context.Context) ([]model.BookResponse, error) {
 	tx := c.DB.WithContext(cx)
 
-	var books []entity.Book
-	if err := c.BookRepository.FindAll(tx, &books); err != nil {
+	books, err := c.BookRepository.FindAll(tx)
+	if err != nil {
 		c.Log.Errorf("Error fetching books: %+v", err)
 		return nil, utils.ErrInternalServerError
 	}
@@ -59,11 +59,6 @@ func (c *BookUseCase) CreateBook(cx context.Context, request *model.BookCreateRe
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, err
-	}
-
 	userId := middleware.GetUserID(cx)
 
 	book := &entity.Book{
@@ -86,8 +81,8 @@ func (c *BookUseCase) CreateBook(cx context.Context, request *model.BookCreateRe
 
 	db := c.DB.WithContext(cx)
 	if err := c.BookRepository.FindByIdWith(db, book, book.ID, "User", "Reviews", "Tags"); err != nil {
-		c.Log.Errorf("Error fetching created book: %+v", err)
-		return nil, utils.ErrInternalServerError
+		c.Log.Warnf("Error fetching created book: %+v", err)
+		return nil, utils.ErrNotFound
 	}
 
 	return converter.BookToResponse(book), nil
@@ -97,23 +92,18 @@ func (c *BookUseCase) UpdateBook(cx context.Context, bookId uint, request *model
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
-
 	book := &entity.Book{}
 	if err := c.BookRepository.FindById(tx, book, bookId); err != nil {
-		c.Log.Errorf("Error fetching book: %+v", err)
+		c.Log.Warnf("Error fetching book: %+v", err)
 		return nil, utils.ErrNotFound
 	}
 
 	userId := middleware.GetUserID(cx)
 	if book.UserID != userId {
-		c.Log.Errorf("User %d is not authorized to update book %d", userId, bookId)
+		c.Log.Warnf("User %d is not authorized to update book %d", userId, bookId)
 		return nil, utils.ErrForbidden
 	}
-	
+
 	book.Title = request.Title
 	book.Author = request.Author
 	book.Publisher = request.Publisher
@@ -144,7 +134,7 @@ func (c *BookUseCase) DeleteBook(cx context.Context, bookId uint) error {
 
 	book := &entity.Book{}
 	if err := c.BookRepository.FindById(tx, book, bookId); err != nil {
-		c.Log.Errorf("Error fetching book: %+v", err)
+		c.Log.Warnf("Error fetching book: %+v", err)
 		return utils.ErrNotFound
 	}
 
@@ -160,8 +150,10 @@ func (c *BookUseCase) DeleteBook(cx context.Context, bookId uint) error {
 	return nil
 }
 
-func (c *BookUseCase) GetUserBooksSubmissions(cx context.Context, userId uint) ([]model.BookResponse, error) {
+func (c *BookUseCase) GetUserBooksSubmissions(cx context.Context) ([]model.BookResponse, error) {
 	tx := c.DB.WithContext(cx)
+
+	userId := middleware.GetUserID(cx)
 
 	books, err := c.BookRepository.GetUserBook(tx, userId)
 	if err != nil {

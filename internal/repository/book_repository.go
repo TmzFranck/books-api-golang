@@ -17,8 +17,12 @@ func NewBookRepository(log *logrus.Logger) *BookRepository {
 	}
 }
 
-func (b *BookRepository) FindAll(db *gorm.DB, books *[]entity.Book) error {
-	return db.Preload("User").Preload("Reviews").Preload("Tags").Find(books).Error
+func (b *BookRepository) FindAll(db *gorm.DB) ([]entity.Book, error) {
+	var books []entity.Book
+	if err := db.Preload("User").Preload("Reviews").Preload("Tags").Find(&books).Error; err != nil {
+		return nil, err
+	}
+	return books, nil
 }
 
 func (b *BookRepository) GetUserBook(db *gorm.DB, userId uint) ([]entity.Book, error) {

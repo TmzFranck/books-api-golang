@@ -45,11 +45,6 @@ func (c *TagUseCase) CreateTag(cx context.Context, request *model.TagCreateReque
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
-
 	tag := &entity.Tag{
 		Name: request.Name,
 	}
@@ -67,10 +62,6 @@ func (c *TagUseCase) CreateTag(cx context.Context, request *model.TagCreateReque
 func (c *TagUseCase) AddTagToBook(cx context.Context, bookId uint, request *model.TagAddRequest) (*model.BookResponse, error) {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
 
 	book, err := c.TagRepository.AddTagToBook(tx, bookId, request)
 	if err != nil {
@@ -90,13 +81,9 @@ func (c *TagUseCase) UpdateTag(cx context.Context, tagId uint, request *model.Ta
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
 	tag := new(entity.Tag)
 	if err := c.TagRepository.FindById(tx, tag, tagId); err != nil {
-		c.Log.Errorf("Error fetching tag: %+v", err)
+		c.Log.Warnf("Error fetching tag: %+v", err)
 		return nil, utils.ErrNotFound
 	}
 

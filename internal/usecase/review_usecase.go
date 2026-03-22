@@ -35,7 +35,7 @@ func (c *ReviewUseCase) GetAllReviews(cx context.Context) ([]model.ReviewRespons
 
 	reviews, err := c.ReviewRepository.GetAll(tx)
 	if err != nil {
-		c.Log.Error("Error fetching reviews: ", err)
+		c.Log.Errorf("Error fetching reviews: %+v", err)
 		return nil, utils.ErrInternalServerError
 	}
 
@@ -47,7 +47,7 @@ func (c *ReviewUseCase) GetReview(cx context.Context, ReviewId uint) (*model.Rev
 
 	review := &entity.Review{}
 	if err := c.ReviewRepository.FindByIdWith(tx, review, ReviewId, "User", "Book"); err != nil {
-		c.Log.Errorf("Error fetching review: %+v", err)
+		c.Log.Warnf("Error fetching review: %+v", err)
 		return nil, utils.ErrNotFound
 	}
 
@@ -75,11 +75,6 @@ func (c *ReviewUseCase) DeleteReviewFromBook(cx context.Context, reviewId uint) 
 func (c *ReviewUseCase) AddReviewToBook(cx context.Context, bookId uint, request *model.ReviewCreateRequest) (*model.ReviewResponse, error) {
 	tx := c.DB.WithContext(cx).Begin()
 	defer tx.Rollback()
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Errorf("Validation error: %+v", err)
-		return nil, utils.ErrBadRequest
-	}
 
 	userId := middleware.GetUserID(cx)
 

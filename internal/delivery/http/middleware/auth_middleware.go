@@ -15,6 +15,7 @@ type contextKey string
 const (
 	UserIDKey    contextKey = "user_id"
 	UserEmailKey contextKey = "user_email"
+	UserTokenKey contextKey = "user_token"
 )
 
 func NewAuthMiddleware(redisClient *redis.Client, logger *logrus.Logger) func(http.Handler) http.Handler {
@@ -42,6 +43,7 @@ func NewAuthMiddleware(redisClient *redis.Client, logger *logrus.Logger) func(ht
 
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserId)
 			ctx = context.WithValue(ctx, UserEmailKey, claims.UserEmail)
+			ctx = context.WithValue(ctx, UserTokenKey, tokenString)
 
 			isBlacklisted, err := utils.GetJwtBlacklist(ctx, redisClient)
 			if err != nil || isBlacklisted {
@@ -63,4 +65,9 @@ func GetUserID(ctx context.Context) uint {
 func GetUserEmail(ctx context.Context) string {
 	userEmail, _ := ctx.Value(UserEmailKey).(string)
 	return userEmail
+}
+
+func GetUserToken(ctx context.Context) string {
+	token, _ := ctx.Value(UserTokenKey).(string)
+	return token
 }
