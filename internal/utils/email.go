@@ -10,12 +10,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Mail represents an email to be sent via SMTP
 type Mail struct {
 	Sender  string
 	To      []string
 	Subject string
 	Body    string
 }
+
+// SMTPConfig holds the configuration for SMTP server connection
 type SMTPConfig struct {
 	SMTPHost string
 	SMTPPort uint
@@ -25,6 +28,7 @@ type SMTPConfig struct {
 	FromName string
 }
 
+// Validate validates the SMTP configuration
 func (s *SMTPConfig) Validate() error {
 	if s.SMTPHost == "" {
 		return fmt.Errorf("SMTP host is required")
@@ -47,6 +51,7 @@ func (s *SMTPConfig) Validate() error {
 	return nil
 }
 
+// Validate validates the mail fields
 func (m *Mail) Validate() error {
 	if m.Sender == "" {
 		return fmt.Errorf("sender cannot be empty")
@@ -63,6 +68,7 @@ func (m *Mail) Validate() error {
 	return nil
 }
 
+// Send sends an email via SMTP
 func sendViaSMTP(ctx context.Context, config *SMTPConfig, mail *Mail) error {
 	auth := smtp.PlainAuth("", config.Username, config.Password, config.SMTPHost)
 
@@ -87,6 +93,7 @@ func sendViaSMTP(ctx context.Context, config *SMTPConfig, mail *Mail) error {
 
 }
 
+// buildEmailHeaders builds the email headers for an SMTP message
 func buildEmailHeaders(config *SMTPConfig, mail *Mail) string {
 	from := config.From
 	if config.FromName != "" {
@@ -100,6 +107,7 @@ func buildEmailHeaders(config *SMTPConfig, mail *Mail) string {
 	)
 }
 
+// getPayloadString returns a string value from the payload, or an empty string if not found
 func getPayloadString(payload map[string]any, key string) string {
 	val, ok := payload[key].(string)
 	if !ok {
@@ -108,6 +116,7 @@ func getPayloadString(payload map[string]any, key string) string {
 	return val
 }
 
+// getPayloadStrings returns a slice of strings from the payload, or an empty slice if not found
 func getPayloadStrings(payload map[string]any, key string) []string {
 	val, ok := payload[key].([]any)
 	if !ok {
@@ -126,6 +135,7 @@ func getPayloadStrings(payload map[string]any, key string) []string {
 	return result
 }
 
+// SendMail submits a job to the worker pool to send an email
 func SendMail(worker *jobs.WokerPool, mail *Mail) error {
 	if err := mail.Validate(); err != nil {
 		return fmt.Errorf("invalid mail: %w", err)
@@ -145,6 +155,7 @@ func SendMail(worker *jobs.WokerPool, mail *Mail) error {
 	return worker.Submit(job)
 }
 
+// Send is the handler function for the SendMail job type
 func Send(ctx context.Context, job *jobs.Job) error {
 	mail := &Mail{
 		Sender:  getPayloadString(job.Payload, "sender"),

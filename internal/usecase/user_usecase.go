@@ -11,7 +11,6 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
 	"github.com/TmzFranck/books-api-golang/internal/utils"
-	"github.com/go-playground/validator/v10"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -22,18 +21,16 @@ import (
 type UserUseCase struct {
 	DB             *gorm.DB
 	Log            *logrus.Logger
-	Validate       *validator.Validate
 	UserRepository *repository.UserRepository
 	Viper          *viper.Viper
 	WorkerPool     *jobs.WokerPool
 	RedisClient    *redis.Client
 }
 
-func NewUserUseCase(db *gorm.DB, log *logrus.Logger, validate *validator.Validate, viper *viper.Viper, workerPool *jobs.WokerPool, userRepository *repository.UserRepository, redisClient *redis.Client) *UserUseCase {
+func NewUserUseCase(db *gorm.DB, log *logrus.Logger, viper *viper.Viper, workerPool *jobs.WokerPool, userRepository *repository.UserRepository, redisClient *redis.Client) *UserUseCase {
 	return &UserUseCase{
 		DB:             db,
 		Log:            log,
-		Validate:       validate,
 		UserRepository: userRepository,
 		Viper:          viper,
 		WorkerPool:     workerPool,
@@ -76,7 +73,7 @@ func (c *UserUseCase) CreateUser(cx context.Context, request *model.UserCreateRe
 		return nil, utils.ErrInternalServerError
 	}
 
-	link := fmt.Sprintf("http://%s/api/v1/auth/verify?token=%s", c.Viper.GetString("server.domain"), token)
+	link := fmt.Sprintf("http://%s/api/v1/auth/verify/token=%s", c.Viper.GetString("server.domain"), token)
 
 	html_message := fmt.Sprintf("<p>Please click the following link to verify your email: <a href=\"%s\">%s</a></p>", link, link)
 
@@ -187,7 +184,7 @@ func (c *UserUseCase) PasswordResetRequest(cx context.Context, request *model.Pa
 		return utils.ErrInternalServerError
 	}
 
-	link := fmt.Sprintf("http://%s/api/auth/password-reset-confirm?token=%s", c.Viper.GetString("server.domain"), token)
+	link := fmt.Sprintf("http://%s/api/auth/password-reset-confirm/token=%s", c.Viper.GetString("server.domain"), token)
 
 	html_message := fmt.Sprintf("<p>Please click the following link to reset your password: <a href=\"%s\">%s</a></p>", link, link)
 

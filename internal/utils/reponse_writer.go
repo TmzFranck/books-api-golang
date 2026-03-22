@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// ResponseWithError writes an error response to the client with the given status code and message
 func ResponseWithError(w http.ResponseWriter, statusCode int, message string, details ...string) {
 	response := map[string]any{
 		"error": message,
@@ -18,6 +19,7 @@ func ResponseWithError(w http.ResponseWriter, statusCode int, message string, de
 	json.NewEncoder(w).Encode(response)
 }
 
+// ResponseWithData writes a success response to the client with the given status code and data
 func ResponseWithData(w http.ResponseWriter, statusCode int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

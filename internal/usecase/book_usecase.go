@@ -9,7 +9,6 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
 	"github.com/TmzFranck/books-api-golang/internal/utils"
-	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -17,15 +16,13 @@ import (
 type BookUseCase struct {
 	DB             *gorm.DB
 	Log            *logrus.Logger
-	Validate       *validator.Validate
 	BookRepository *repository.BookRepository
 }
 
-func NewBookUseCase(db *gorm.DB, log *logrus.Logger, validate *validator.Validate, bookRepository *repository.BookRepository) *BookUseCase {
+func NewBookUseCase(db *gorm.DB, log *logrus.Logger, bookRepository *repository.BookRepository) *BookUseCase {
 	return &BookUseCase{
 		DB:             db,
 		Log:            log,
-		Validate:       validate,
 		BookRepository: bookRepository,
 	}
 }

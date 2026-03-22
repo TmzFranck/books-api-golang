@@ -8,7 +8,6 @@ import (
 	"github.com/TmzFranck/books-api-golang/internal/model/converter"
 	"github.com/TmzFranck/books-api-golang/internal/repository"
 	"github.com/TmzFranck/books-api-golang/internal/utils"
-	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -16,15 +15,13 @@ import (
 type TagUseCase struct {
 	DB            *gorm.DB
 	Log           *logrus.Logger
-	Validate      *validator.Validate
 	TagRepository *repository.TagRepository
 }
 
-func NewTagUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Validate, tagRepository *repository.TagRepository) *TagUseCase {
+func NewTagUseCase(db *gorm.DB, logger *logrus.Logger, tagRepository *repository.TagRepository) *TagUseCase {
 	return &TagUseCase{
 		DB:            db,
 		Log:           logger,
-		Validate:      validate,
 		TagRepository: tagRepository,
 	}
 }

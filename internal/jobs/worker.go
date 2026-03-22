@@ -35,14 +35,14 @@ func NewWorkerPool(numWorkes, queueSize int, logger *logrus.Logger) *WokerPool {
 	}
 }
 
-// RegisterHandler
+// RegisterHandler registers a handler for a specific job type
 func (wp *WokerPool) RegisterHandler(JobType string, handler Handler) {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	wp.handlers[JobType] = handler
 }
 
-// Start
+// Start starts the worker pool
 func (wp *WokerPool) Start() {
 	for i := 0; i < wp.numWorkers; i++ {
 		wp.wg.Add(1)
@@ -50,7 +50,7 @@ func (wp *WokerPool) Start() {
 	}
 }
 
-// worker
+// worker processes jobs from the job queue
 func (wp *WokerPool) worker(id int) {
 	defer wp.wg.Done()
 
@@ -65,7 +65,7 @@ func (wp *WokerPool) worker(id int) {
 	}
 }
 
-// processJob
+// processJob processes a single job
 func (wp *WokerPool) processJob(workerID int, job *Job) {
 	wp.mu.RLock()
 	handler, exists := wp.handlers[job.Type]
@@ -96,7 +96,7 @@ func (wp *WokerPool) processJob(workerID int, job *Job) {
 	}
 }
 
-// safeExecute
+// safeExecute executes a job handler safely, recovering from panics
 func (wp *WokerPool) safeExecute(ctx context.Context, handler Handler, job *Job) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -106,7 +106,7 @@ func (wp *WokerPool) safeExecute(ctx context.Context, handler Handler, job *Job)
 	return handler(ctx, job)
 }
 
-// Submit
+// Submit submits a job to the worker pool for processing
 func (wp *WokerPool) Submit(job *Job) error {
 	if job.ID == "" {
 		job.ID = generateID()
@@ -126,7 +126,7 @@ func (wp *WokerPool) Submit(job *Job) error {
 	}
 }
 
-// scheduleRetry
+// scheduleRetry schedules a retry for a failed job
 func (wp *WokerPool) scheduleRetry(job *Job) {
 	delay := time.Duration(1<<job.Attempts) * time.Second
 
@@ -145,7 +145,7 @@ func (wp *WokerPool) scheduleRetry(job *Job) {
 	}
 }
 
-// generateID
+// generateID generates a unique job ID
 func generateID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

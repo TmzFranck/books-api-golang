@@ -8,12 +8,13 @@ import (
 )
 
 var (
-	accessSecret  []byte
-	refreshSecret []byte
-	accessTTL     = 15 * time.Minute
-	refreshTTL    = 1 * time.Hour
+	accessSecret  []byte             // secret key for access tokens
+	refreshSecret []byte             // secret key for refresh tokens
+	accessTTL     = 15 * time.Minute // Time to live for access tokens
+	refreshTTL    = 1 * time.Hour    // Time to live for refresh tokens
 )
 
+// Claims represents the JWT claims for access and refresh tokens
 type Claims struct {
 	UserId    uint   `json:"user_id"`
 	UserEmail string `json:"user_email"`
@@ -21,16 +22,19 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// UrlSafeToken represents a URL-safe JWT token for email verification
 type UrlSafeToken struct {
 	Usermail string `json:"usermail"`
 	jwt.RegisteredClaims
 }
 
+// InitJWT initializes the JWT secret keys
 func InitJWT(accessSecretKey, refreshSecretKey string) {
 	accessSecret = []byte(accessSecretKey)
 	refreshSecret = []byte(refreshSecretKey)
 }
 
+// GenerateTokens generates a new access and refresh token pair for the given user
 func GenerateTokens(userId uint, userEmail string) (string, string, error) {
 	// Access Token
 	accessClaims := &Claims{
@@ -66,6 +70,7 @@ func GenerateTokens(userId uint, userEmail string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
+// RefreshToken refreshes the access token using a valid refresh token and returns the new access token
 func RefreshToken(r string) (string, error) {
 	claims, err := ValidateToken(r)
 	if err != nil || !claims.Refresh {
@@ -80,6 +85,7 @@ func RefreshToken(r string) (string, error) {
 	return newAccessToken, nil
 }
 
+// ValidateToken validates the given token string and returns the claims if valid
 func ValidateToken(tokenString string) (*Claims, error) {
 	// Parse and validate the token
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
@@ -98,6 +104,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// GenerateURLSafeToken generates a URL-safe JWT token for email verification
 func GenerateURLSafeToken(usermail string) (string, error) {
 	token := &UrlSafeToken{
 		Usermail: usermail,
@@ -109,6 +116,7 @@ func GenerateURLSafeToken(usermail string) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, token).SignedString(accessSecret)
 }
 
+// ValidateURLSafeToken validates the given URL-safe JWT token and returns the claims if valid
 func ValidateURLSafeToken(tokenString string) (*UrlSafeToken, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UrlSafeToken{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
