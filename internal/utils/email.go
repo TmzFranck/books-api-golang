@@ -136,7 +136,7 @@ func getPayloadStrings(payload map[string]any, key string) []string {
 }
 
 // SendMail submits a job to the worker pool to send an email
-func SendMail(worker *jobs.WokerPool, mail *Mail) error {
+func SendMail(ctx context.Context, worker *jobs.WorkerPool, mail *Mail) error {
 	if err := mail.Validate(); err != nil {
 		return fmt.Errorf("invalid mail: %w", err)
 	}
@@ -152,7 +152,7 @@ func SendMail(worker *jobs.WokerPool, mail *Mail) error {
 		Payload: payload,
 	}
 
-	return worker.Submit(job)
+	return worker.Submit(ctx, job)
 }
 
 // Send is the handler function for the SendMail job type

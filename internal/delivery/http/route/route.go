@@ -1,7 +1,9 @@
 package route
 
 import (
-	"github.com/TmzFranck/books-api-golang/internal/delivery/http"
+	"net/http"
+
+	controller "github.com/TmzFranck/books-api-golang/internal/delivery/http"
 	"github.com/TmzFranck/books-api-golang/internal/delivery/http/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
@@ -10,10 +12,10 @@ import (
 
 type RouteConfig struct {
 	App              *chi.Mux
-	UserController   *http.UserController
-	BookController   *http.BookController
-	ReviewController *http.ReviewController
-	TagController    *http.TagController
+	UserController   *controller.UserController
+	BookController   *controller.BookController
+	ReviewController *controller.ReviewController
+	TagController    *controller.TagController
 	RedisClient      *redis.Client
 	Logger           *logrus.Logger
 	AuthMiddleware   middleware.HandlerFunc
@@ -22,6 +24,7 @@ type RouteConfig struct {
 func (c *RouteConfig) Setup() {
 	c.RegisterGuestsRoute()
 	c.SetupAuthRoute()
+	c.Health()
 }
 
 func (c *RouteConfig) RegisterGuestsRoute() {
@@ -62,5 +65,13 @@ func (c *RouteConfig) SetupAuthRoute() {
 		r.Put("/api/v1/tags/{tag_id}", c.TagController.UpdateTag)
 		r.Delete("/api/v1/tags/{tag_id}", c.TagController.DeleteTag)
 		r.Post("/api/v1/tags/books/{book_id}", c.TagController.AddTagToBook)
+	})
+}
+
+func (c *RouteConfig) Health() {
+
+	c.App.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
 	})
 }
