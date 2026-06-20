@@ -21,7 +21,7 @@ type UserController struct {
 
 func NewUserController(log *logrus.Logger, useCase *usecase.UserUseCase, validator *validator.Validate) *UserController {
 	return &UserController{
-		Log:       log,
+		Log:       log.WithField("module", "UserController").Logger,
 		useCase:   useCase,
 		validator: validator,
 	}

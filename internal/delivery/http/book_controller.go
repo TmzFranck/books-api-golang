@@ -20,7 +20,7 @@ type BookController struct {
 
 func NewBookController(log *logrus.Logger, useCase *usecase.BookUseCase, validator *validator.Validate) *BookController {
 	return &BookController{
-		Log:       log,
+		Log:       log.WithField("module", "BookController").Logger,
 		useCase:   useCase,
 		validator: validator,
 	}
