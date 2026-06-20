@@ -20,7 +20,7 @@ type TagController struct {
 
 func NewTagController(log *logrus.Logger, useCase *usecase.TagUseCase, validator *validator.Validate) *TagController {
 	return &TagController{
-		Log:       log,
+		Log:       log.WithField("module", "TagController").Logger,
 		useCase:   useCase,
 		validator: validator,
 	}

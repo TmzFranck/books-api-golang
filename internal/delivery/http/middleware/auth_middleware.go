@@ -21,9 +21,10 @@ const (
 )
 
 // NewAuthMiddleware creates a new authentication middleware that validates JWT tokens from the Authorization header
-func NewAuthMiddleware(redisClient *redis.Client, logger *logrus.Logger) func(http.Handler) http.Handler {
+func NewAuthMiddleware(redisClient *redis.Client, log *logrus.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger := log.WithField("module", "AuthMiddleware")
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				logger.Warn("missing authorization header")
