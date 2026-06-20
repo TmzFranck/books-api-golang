@@ -23,11 +23,11 @@ type UserUseCase struct {
 	Log            *logrus.Logger
 	UserRepository *repository.UserRepository
 	Viper          *viper.Viper
-	WorkerPool     *jobs.WokerPool
+	WorkerPool     *jobs.WorkerPool
 	RedisClient    *redis.Client
 }
 
-func NewUserUseCase(db *gorm.DB, log *logrus.Logger, viper *viper.Viper, workerPool *jobs.WokerPool, userRepository *repository.UserRepository, redisClient *redis.Client) *UserUseCase {
+func NewUserUseCase(db *gorm.DB, log *logrus.Logger, viper *viper.Viper, workerPool *jobs.WorkerPool, userRepository *repository.UserRepository, redisClient *redis.Client) *UserUseCase {
 	return &UserUseCase{
 		DB:             db,
 		Log:            log,
@@ -75,16 +75,16 @@ func (c *UserUseCase) CreateUser(cx context.Context, request *model.UserCreateRe
 
 	link := fmt.Sprintf("http://%s/api/v1/auth/verify/token=%s", c.Viper.GetString("server.domain"), token)
 
-	html_message := fmt.Sprintf("<p>Please click the following link to verify your email: <a href=\"%s\">%s</a></p>", link, link)
+	htmlMessage := fmt.Sprintf("<p>Please click the following link to verify your email: <a href=\"%s\">%s</a></p>", link, link)
 
 	mail := &utils.Mail{
 		Sender:  "Books API",
 		To:      []string{user.Email},
 		Subject: "Verify your email",
-		Body:    html_message,
+		Body:    htmlMessage,
 	}
 
-	if err = utils.SendMail(c.WorkerPool, mail); err != nil {
+	if err = utils.SendMail(cx, c.WorkerPool, mail); err != nil {
 		c.Log.Errorf("Error sending verification email: %+v", err)
 	}
 
@@ -186,16 +186,16 @@ func (c *UserUseCase) PasswordResetRequest(cx context.Context, request *model.Pa
 
 	link := fmt.Sprintf("http://%s/api/auth/password-reset-confirm/token=%s", c.Viper.GetString("server.domain"), token)
 
-	html_message := fmt.Sprintf("<p>Please click the following link to reset your password: <a href=\"%s\">%s</a></p>", link, link)
+	htmlMessage := fmt.Sprintf("<p>Please click the following link to reset your password: <a href=\"%s\">%s</a></p>", link, link)
 
 	mail := utils.Mail{
 		Sender:  "Books Api",
 		To:      []string{user.Email},
 		Subject: "Password Reset",
-		Body:    html_message,
+		Body:    htmlMessage,
 	}
 
-	err = utils.SendMail(c.WorkerPool, &mail)
+	err = utils.SendMail(cx, c.WorkerPool, &mail)
 	if err != nil {
 		c.Log.Errorf("Error sending mail: %+v", err)
 		return utils.ErrInternalServerError
@@ -251,7 +251,7 @@ func (c *UserUseCase) SendMail(cx context.Context, request *model.EmailRequest) 
 		Body:    "<h1>Welcome to Books Api!</h1>",
 	}
 
-	if err := utils.SendMail(c.WorkerPool, mail); err != nil {
+	if err := utils.SendMail(cx, c.WorkerPool, mail); err != nil {
 		c.Log.Errorf("Error sending mail: %+v", err)
 		return utils.ErrInternalServerError
 	}
@@ -262,10 +262,10 @@ func (c *UserUseCase) SendMail(cx context.Context, request *model.EmailRequest) 
 func (c *UserUseCase) GetCurrentUser(cx context.Context) (*model.UserResponse, error) {
 	tx := c.DB.WithContext(cx)
 
-	usermail := middleware.GetUserEmail(cx)
+	userMail := middleware.GetUserEmail(cx)
 
 	user := &entity.User{}
-	if err := c.UserRepository.FindByEmail(tx, user, usermail); err != nil {
+	if err := c.UserRepository.FindByEmail(tx, user, userMail); err != nil {
 		c.Log.Warnf("Error fetching user: %+v", err)
 		return nil, utils.ErrNotFound
 	}

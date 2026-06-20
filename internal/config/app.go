@@ -21,7 +21,7 @@ type BootstrapConfig struct {
 	Log         *logrus.Logger
 	Validate    *validator.Validate
 	Config      *viper.Viper
-	WorkerPool  *jobs.WokerPool
+	WorkerPool  *jobs.WorkerPool
 	RedisClient *redis.Client
 }
 

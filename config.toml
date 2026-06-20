@@ -3,7 +3,7 @@ domain = ""
 port = 8888
 
 [database]
-path = "books.db"
+path = "../../books.db"
 
 [log]
 level = 6 # 0 is panic level, 1 is fatal level, 2 is error level, 3 is warn level, 4 is info level, 5 is debug level, 6 is trace level

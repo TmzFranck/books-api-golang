@@ -30,7 +30,7 @@ func NewUserController(log *logrus.Logger, useCase *usecase.UserUseCase, validat
 func (c *UserController) Register(w http.ResponseWriter, r *http.Request) {
 	request := new(model.UserCreateRequest)
 	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
-		c.Log.Warnf("failed to decode resquest body: %v", err)
+		c.Log.Warnf("failed to decode request body: %v", err)
 		utils.ResponseWithError(w, http.StatusBadRequest, "invalid request format")
 		return
 	}
@@ -74,7 +74,7 @@ func (c *UserController) Login(w http.ResponseWriter, r *http.Request) {
 	response, err := c.useCase.LoginUser(r.Context(), request)
 	if err != nil {
 		c.Log.Errorf("login use case failed: %v", err)
-		utils.ResponseWithError(w, http.StatusBadRequest, "failed to procces login")
+		utils.ResponseWithError(w, http.StatusBadRequest, "failed to process login")
 		return
 	}
 
